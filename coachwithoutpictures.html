@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1-Minute Speaking Coach (Bilingual)</title>
+<style>
+  :root { --bg:#0b1a2a; --card:#0f2742; --text:#e7f2ff; --muted:#a9c6e8; --accent:#5cc7ff; }
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+  .wrap{max-width:900px;margin:auto;padding:24px}
+  .card{background:var(--card);border:1px solid #1d3a5c;border-radius:16px;padding:20px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  h1{margin:0 0 8px;font-size:26px}
+  .sub{color:var(--muted);margin:0 0 16px}
+  .grid{display:grid;gap:14px}
+  label{font-weight:600}
+  input[type="text"], select, textarea{
+    width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2a4771; background:#0a1f39; color:var(--text);
+  }
+  button{cursor:pointer;border:1px solid #2a4771;background:#102f52;color:var(--text);padding:10px 14px;border-radius:10px}
+  button.primary{background:linear-gradient(180deg,#169bf0,#1177c3);border:0}
+  button:disabled{opacity:.55;cursor:not-allowed}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .prompt{font-size:18px;background:#0a1f39;padding:14px;border-radius:10px;border:1px solid #2a4771}
+  .prompt .es{color:#bfe0ff;opacity:.95}
+  .meter{height:10px;background:#0a1f39;border:1px solid #2a4771;border-radius:999px;overflow:hidden}
+  .bar{height:100%;width:0;background:linear-gradient(90deg,#12d6ff,#3ff2a8)}
+  .kpi{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px}
+  .kpi .box{background:#0a1f39;border:1px solid #2a4771;border-radius:12px;padding:12px;text-align:center}
+  .box .big{font-weight:800;font-size:22px}
+  .muted{color:var(--muted);font-size:13px}
+  details{background:#0a1f39;border:1px solid #2a4771;border-radius:12px;padding:10px}
+  audio{width:100%}
+  .small{font-size:12px;color:var(--muted)}
+  .chip{font-size:12px;border:1px solid #2a4771;background:#0a1f39;border-radius:999px;padding:.15rem .5rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card grid">
+    <div>
+      <h1>1-Minute Speaking Coach</h1>
+      <p class="sub">Timed speaking with bilingual prompts, transcript, WPM, and filler counts. Data stays on this device.</p>
+    </div>
+
+    <div class="grid" aria-label="Setup">
+      <div class="row">
+        <label for="student">Student name</label>
+        <input id="student" placeholder="e.g., Alex R." autocomplete="name">
+      </div>
+
+      <div class="row">
+        <label for="duration">Duration</label>
+        <select id="duration">
+          <option value="30">30s</option>
+          <option value="60" selected>60s</option>
+          <option value="90">90s</option>
+        </select>
+
+        <button id="btnPrompt">New Prompt</button>
+      </div>
+
+      <div>
+        <div class="prompt" id="prompt">
+          Click “New Prompt” to begin. <span class="chip">EN + ES</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="primary" id="btnStart">Start Recording</button>
+        <button id="btnStop" disabled>Stop</button>
+        <span id="status" class="muted">Idle</span>
+      </div>
+
+      <div class="meter" aria-label="Time remaining">
+        <div class="bar" id="bar"></div>
+      </div>
+    </div>
+
+    <div class="grid" aria-label="Transcript">
+      <label for="transcript">Transcript (auto if available; editable)</label>
+      <textarea id="transcript" rows="6" placeholder="Transcript will appear here if speech recognition is supported. You can edit before saving."></textarea>
+      <span class="small">Tip: If auto-transcription isn’t supported or allowed, students can type a brief summary here after speaking.</span>
+    </div>
+
+    <div class="kpi" aria-label="Metrics">
+      <div class="box"><div class="muted">Words</div><div class="big" id="words">0</div></div>
+      <div class="box"><div class="muted">WPM</div><div class="big" id="wpm">0</div></div>
+      <div class="box"><div class="muted">Fillers</div><div class="big" id="fillers">0</div></div>
+      <div class="box"><div class="muted">Duration</div><div class="big" id="elapsed">0s</div></div>
+    </div>
+
+    <div class="grid" aria-label="Outputs">
+      <details>
+        <summary>Audio & session data</summary>
+        <div class="grid" style="margin-top:10px">
+          <audio id="player" controls></audio>
+          <div class="row">
+            <button id="btnSave" class="primary" disabled>Save Session</button>
+            <button id="btnExport">Export CSV</button>
+            <button id="btnClearData">Clear Saved Sessions</button>
+            <span class="muted" id="savedCount">0 sessions saved</span>
+          </div>
+        </div>
+      </details>
+      <span class="small">Privacy: audio and session data are stored locally in this browser (no cloud). Export CSV to share with the teacher.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- BILINGUAL PROMPTS (EN/ES) ---------- */
+/* Edit freely; keep {en:"", es:""} structure. */
+const PROMPTS = [
+  {en:"Describe your morning routine in one minute.", es:"Describe tu rutina matutina en un minuto."},
+  {en:"Explain one tradition from your culture.", es:"Explica una tradición de tu cultura."},
+  {en:"Tell us about a favorite food and how it’s made.", es:"Háblanos de una comida favorita y cómo se prepara."},
+  {en:"What is a country you want to visit and why?", es:"¿Qué país te gustaría visitar y por qué?"},
+  {en:"Give directions from school to your home using landmarks.", es:"Da direcciones desde la escuela hasta tu casa usando referencias."},
+  {en:"What are three facts about your city?", es:"¿Cuáles son tres datos sobre tu ciudad?"},
+  {en:"Describe a hobby and how you learned it.", es:"Describe un pasatiempo y cómo lo aprendiste."},
+  {en:"Tell a story about a time you helped someone.", es:"Cuenta una historia de cuando ayudaste a alguien."},
+  {en:"Convince us why reading is important.", es:"Convéncenos de por qué la lectura es importante."},
+  {en:"Teach us how to say hello in three languages.", es:"Enséñanos cómo decir hola en tres idiomas."},
+  {en:"Explain your favorite subject and what you like about it.", es:"Explica tu materia favorita y qué te gusta de ella."},
+  {en:"What’s a challenge you overcame? How?", es:"¿Qué desafío superaste? ¿Cómo?"},
+  {en:"If you could invent something for school, what would it be?", es:"Si pudieras inventar algo para la escuela, ¿qué sería?"},
+  {en:"Describe a holiday and how people celebrate it.", es:"Describe una festividad y cómo la celebra la gente."},
+  {en:"Tell us about a sport you enjoy watching or playing.", es:"Háblanos de un deporte que disfrutas ver o practicar."},
+  {en:"Compare two countries (weather, language, food).", es:"Compara dos países (clima, idioma, comida)."},
+  {en:"Recommend a book and why others should read it.", es:"Recomienda un libro y por qué otros deberían leerlo."},
+  {en:"What makes a good friend? Give examples.", es:"¿Qué hace a un buen amigo? Da ejemplos."},
+  {en:"Explain a simple recipe step by step.", es:"Explica una receta sencilla paso a paso."},
+  {en:"Describe a place that makes you feel calm.", es:"Describe un lugar que te hace sentir tranquilo/a."},
+  {en:"What are three study tips that work for you?", es:"¿Cuáles son tres consejos de estudio que te funcionan?"},
+  {en:"If you had one rule for the school, what would it be and why?", es:"Si pudieras poner una regla en la escuela, ¿cuál sería y por qué?"}
+];
+
+/* ---------- State ---------- */
+let mediaRecorder, audioChunks = [];
+let recognition, recognizing = false;
+let startTime = 0, timerId = null, totalDuration = 60, elapsed = 0;
+let audioBlobUrl = null;
+const fillersSet = new Set(["um","uh","like","you know","er","ah","hmm"]);
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const sanitize = s => (s||"").replace(/\s+/g," ").trim();
+
+function pickPrompt(){
+  return PROMPTS[Math.floor(Math.random()*PROMPTS.length)];
+}
+function renderPrompt(p){
+  $('prompt').innerHTML = `${p.en}<br><span class="es">${p.es}</span>`;
+}
+
+function countWords(text){
+  const words = sanitize(text).match(/[A-Za-zÀ-ÖØ-öø-ÿ]+(?:'[A-Za-z]+)?/g);
+  return words ? words.length : 0;
+}
+function countFillers(text){
+  const t = " " + sanitize(text).toLowerCase() + " ";
+  let count = 0;
+  fillersSet.forEach(f => {
+    const re = new RegExp(`\\b${f}\\b`,'g');
+    const matches = t.match(re);
+    if(matches) count += matches.length;
+  });
+  return count;
+}
+function updateMetrics(){
+  const text = $('transcript').value;
+  const words = countWords(text);
+  const wpm = elapsed ? Math.round(words / (elapsed/60)) : 0;
+  $('words').textContent = words;
+  $('wpm').textContent = wpm;
+  $('fillers').textContent = countFillers(text);
+  $('elapsed').textContent = `${Math.floor(elapsed)}s`;
+}
+
+/* ---------- Timer / Progress ---------- */
+function startTimer(){
+  startTime = performance.now();
+  elapsed = 0;
+  $('bar').style.width = '0%';
+  timerId = requestAnimationFrame(tick);
+}
+function tick(ts){
+  elapsed = (ts - startTime)/1000;
+  const pct = Math.min(100, (elapsed/totalDuration)*100);
+  $('bar').style.width = pct + '%';
+  $('elapsed').textContent = `${Math.floor(elapsed)}s`;
+  updateMetrics();
+  if(elapsed >= totalDuration){ stopAll(); return; }
+  timerId = requestAnimationFrame(tick);
+}
+function stopTimer(){
+  if(timerId){ cancelAnimationFrame(timerId); timerId = null; }
+}
+
+/* ---------- MediaRecorder (audio) ---------- */
+async function startRecording(){
+  audioChunks = [];
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = e => { if(e.data.size>0) audioChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    if(audioBlobUrl) URL.revokeObjectURL(audioBlobUrl);
+    audioBlobUrl = URL.createObjectURL(blob);
+    $('player').src = audioBlobUrl;
+    $('btnSave').disabled = false;
+  };
+  mediaRecorder.start();
+}
+
+/* ---------- Speech Recognition (Chrome) ---------- */
+function startASR(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ $('status').textContent = 'Speech recognition not supported; you can type a summary.'; return; }
+  recognition = new SR();
+  recognition.lang = 'en-US'; // default recognition language
+  recognition.interimResults = true;
+  recognition.continuous = true;
+  let finalText = '';
+
+  recognition.onresult = (e) => {
+    let interim = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const tr = e.results[i][0].transcript;
+      if(e.results[i].isFinal) finalText += tr + ' ';
+      else interim += tr;
+    }
+    $('transcript').value = (finalText + ' ' + interim).trim();
+    updateMetrics();
+  };
+  recognition.onend = () => { recognizing = false; };
+  recognition.onerror = () => { $('status').textContent = 'ASR error. You can still save audio and type notes.'; };
+  recognition.start();
+  recognizing = true;
+}
+
+/* ---------- Start / Stop ---------- */
+async function startAll(){
+  $('btnStart').disabled = true;
+  $('btnStop').disabled = false;
+  $('btnSave').disabled = true;
+  $('status').textContent = 'Recording… speak clearly.';
+
+  totalDuration = parseInt($('duration').value, 10);
+  $('transcript').value = '';
+  updateMetrics();
+
+  try { await startRecording(); } 
+  catch(e){ $('status').textContent = 'Mic blocked or unavailable. You can still type the transcript.'; }
+
+  startASR();
+  startTimer();
+}
+
+function stopAll(){
+  stopTimer();
+  if(mediaRecorder && mediaRecorder.state !== 'inactive'){ mediaRecorder.stop(); }
+  if(recognizing && recognition){ recognition.stop(); recognizing = false; }
+  $('btnStart').disabled = false;
+  $('btnStop').disabled = true;
+  $('status').textContent = 'Stopped. Review transcript and save.';
+  updateMetrics();
+}
+
+/* ---------- Storage / Export ---------- */
+function getSaved(){ return JSON.parse(localStorage.getItem('speaking_sessions')||'[]'); }
+function setSaved(arr){ localStorage.setItem('speaking_sessions', JSON.stringify(arr)); $('savedCount').textContent = `${arr.length} sessions saved`; }
+
+function saveSession(){
+  const row = {
+    time: new Date().toISOString(),
+    student: sanitize($('student').value)||'Unknown',
+    prompt: $('prompt').innerText, // bilingual text
+    duration_s: totalDuration,
+    elapsed_s: Math.round(elapsed),
+    words: parseInt($('words').textContent,10)||0,
+    wpm: parseInt($('wpm').textContent,10)||0,
+    fillers: parseInt($('fillers').textContent,10)||0,
+    transcript: $('transcript').value
+  };
+  const list = getSaved(); list.push(row); setSaved(list);
+  $('status').textContent = 'Saved locally. Use Export CSV to share.';
+}
+
+function exportCSV(){
+  const rows = getSaved();
+  if(!rows.length){ alert('No saved sessions.'); return; }
+  const headers = ["time","student","prompt","duration_s","elapsed_s","words","wpm","fillers","transcript"];
+  const esc = v => `"${String(v).replace(/"/g,'""')}"`;
+  const csv = [headers.join(",")].concat(rows.map(r => headers.map(h => esc(r[h]??"")).join(","))).join("\r\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'speaking_sessions.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function clearData(){
+  if(confirm('Delete all saved sessions from this browser?')){ localStorage.removeItem('speaking_sessions'); setSaved([]); }
+}
+
+/* ---------- UI wiring ---------- */
+$('btnPrompt').onclick = () => { renderPrompt(pickPrompt()); };
+$('btnStart').onclick = startAll;
+$('btnStop').onclick = stopAll;
+$('btnSave').onclick = saveSession;
+$('btnExport').onclick = exportCSV;
+$('btnClearData').onclick = clearData;
+$('transcript').addEventListener('input', updateMetrics);
+setSaved(getSaved());
+</script>
+</body>
+</html>
